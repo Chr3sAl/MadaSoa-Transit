@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  admin
+  operator
+  finance
+}
+
+enum ShipmentStatus {
+  draft
+  received
+  in_transit
+  arrived
+  ready_for_pickup
+  delivered
+  on_hold
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum TransportType {
+  air
+  air_batterie
+  express
+  express_batterie
+  maritime
+}
+
+enum IncomingParcelStatus {
+  unassigned
+  received
+}
+
+enum CustomerAliasKind {
+  receiver_name
+  receiver_phone
+  marketplace_alias
+}
+
+enum ImportRowStatus {
+  created
+  updated
+  skipped
+  error
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  importBatches ImportBatch[]
+  auditLogs    AuditLog[]
+}
+
+model Customer {
+  id               String     @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  customerCode     String     @unique
+  referencePrefix  String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  aliases          CustomerAlias[]
+  incomingParcels  IncomingParcel[]
+  shipments        Shipment[]
+}
+
+model CustomerAlias {
+  id              String            @id @default(cuid())
+  customerId      String
+  kind            CustomerAliasKind
+  value           String
+  normalizedValue String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([normalizedValue])
+  @@unique([customerId, kind, normalizedValue])
+}
+
+model IncomingParcel {
+  id                 String               @id @default(cuid())
+  chinaTrackingNumber String              @unique
+  scanValue          String
+  courierCompany     String?
+  customerId         String?
+  status             IncomingParcelStatus
+  matchedBy          String?
+  receiverNameRaw    String?
+  receiverPhoneRaw   String?
+  receiverAddressRaw String?
+  ocrText            String?
+  declaredValue      Float
+  declaredCurrency   String               @default("CNY")
+  actualWeightKg     Float
+  transportType      TransportType        @default(express)
+  notes              String?
+  shelfLocation      String?
+  warehouseReceivedAt DateTime            @default(now())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  customer           Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  images             IncomingParcelImage[]
+  shipment           Shipment?
+
+  @@index([status, updatedAt])
+  @@index([customerId])
+}
+
+model IncomingParcelImage {
+  id        String         @id @default(cuid())
+  parcelId  String
+  dataUrl   String
+  fileName  String?
+  createdAt DateTime       @default(now())
+  parcel    IncomingParcel @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
+  @@index([parcelId])
+}
+
+model Shipment {
+  id                String          @id @default(cuid())
+  trackingNumber    String          @unique
+  customerReference String
+  customerId        String
+  incomingParcelId  String?         @unique
+  transportType     TransportType   @default(express)
+  origin            String
+  destination       String
+  carrier           String?
+  currentStatus     ShipmentStatus
+  paymentStatus     PaymentStatus
+  actualWeightKg    Float           @default(0)
+  volumetricWeightKg Float          @default(0)
+  volumeCbm         Float           @default(0)
+  freightAmount     Float           @default(0)
+  currency          String          @default("Ar")
+  eta               DateTime?
+  notes             String?
+  publicVisible     Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  customer          Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  incomingParcel    IncomingParcel? @relation(fields: [incomingParcelId], references: [id], onDelete: SetNull)
+  events            ShipmentEvent[]
+  importRows        ImportRow[]
+  auditLogs         AuditLog[]
+
+  @@index([customerReference])
+  @@index([paymentStatus])
+}
+
+model ShipmentEvent {
+  id         String         @id @default(cuid())
+  shipmentId String
+  status     ShipmentStatus
+  label      String
+  details    String?
+  location   String?
+  occurredAt DateTime
+  createdAt  DateTime       @default(now())
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, occurredAt])
+}
+
+model ImportBatch {
+  id           String      @id @default(cuid())
+  fileName     String
+  createdCount Int         @default(0)
+  updatedCount Int         @default(0)
+  errorCount   Int         @default(0)
+  uploadedAt   DateTime    @default(now())
+  uploadedById String
+  uploadedBy   User        @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  rows         ImportRow[]
+}
+
+model ImportRow {
+  id           String          @id @default(cuid())
+  batchId      String
+  shipmentId   String?
+  rowNumber    Int
+  trackingNumber String
+  status       ImportRowStatus
+  message      String
+  rawData      Json
+  createdAt    DateTime        @default(now())
+  batch        ImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  shipment     Shipment?       @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  @@index([batchId, rowNumber])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  entityType String
+  entityId   String
+  action     String
+  details    Json?
+  createdAt  DateTime @default(now())
+  shipmentId String?
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+}
+
+model PublicLookupRateLimitBucket {
+  key       String   @id
+  hitCount  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
