@@ -7,10 +7,10 @@ import {
   ChevronDown,
   Clock3,
   House,
+  LayoutDashboard,
   MapPinned,
   PackageSearch,
   Plane,
-  Phone,
   Route,
   Search,
   Warehouse,
@@ -228,7 +228,7 @@ export function TrackingPortal({ locale }: TrackingPortalProps) {
       <div className="page-glow pointer-events-none absolute inset-0" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,_var(--accent-soft),_transparent_60%)]" />
 
-      <header className="relative mx-auto flex w-full max-w-[84rem] items-center justify-between pt-4">
+      <header className="relative mx-auto flex w-full max-w-[84rem] flex-col gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className="brand-mark flex h-14 w-14 items-center justify-center rounded-full text-xs font-black uppercase tracking-[0.18em]">
             MS
@@ -241,20 +241,16 @@ export function TrackingPortal({ locale }: TrackingPortalProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ThemeToggle locale={locale} className="hidden sm:inline-flex" />
-          <div
-            aria-hidden="true"
-            className="icon-shell hidden h-11 w-11 items-center justify-center rounded-full sm:inline-flex"
-          >
-            <Phone className="h-4 w-4" />
-          </div>
+        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
+          <ThemeToggle locale={locale} className="w-full justify-center px-3 sm:w-auto sm:px-4" />
           <LanguageSwitch locale={locale} />
           <a
             href={`/${locale}/admin`}
-            className="hidden h-11 items-center rounded-full border border-[var(--brand)] bg-[var(--surface-secondary)] px-5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:inline-flex"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[var(--brand)] bg-[var(--surface-secondary)] px-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:px-5"
           >
-            {copy.adminLink}
+            <LayoutDashboard className="h-4 w-4 sm:hidden" />
+            <span className="sm:hidden">{locale === "fr" ? "Admin" : "Admin"}</span>
+            <span className="hidden sm:inline">{copy.adminLink}</span>
           </a>
         </div>
       </header>
